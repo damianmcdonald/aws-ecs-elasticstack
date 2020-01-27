@@ -1,0 +1,32 @@
+es_host: elasticsearch
+es_port: 9200
+name: Exception checks
+type: frequency
+index: filebeat-*
+num_events: 3
+timeframe:
+  minutes: 1
+filter:
+- query:
+    query_string:
+      query: "message:*Exception*"
+alert:
+  - email
+email:
+  - "softwarepackage.insights@gmail.com"
+email_reply_to: softwarepackage.insights@gmail.com
+from_addr: softwarepackage.insights@gmail.com
+smtp_host: email-smtp.eu-west-1.amazonaws.com
+smtp_port: 587
+smtp_auth_file: /opt/elastalert/secret/email-credentials.yml
+
+alert_subject: "Exception occurred at {0}"
+alert_subject_args:
+  - "@timestamp"
+alert_text: |-
+  timestamp: {0}
+  message: {1}
+alert_text_args:
+  - "@timestamp"
+  - message
+alert_text_type: alert_text_only

@@ -1,0 +1,20 @@
+- type: http
+  schedule: '@every 15s'
+  urls: ["http://www.google.com:80"]
+  check.request.method: GET
+  check.response.status: 200
+- type: http
+  schedule: '@every 15s'
+  urls: ["https://www.microsoft.com"]
+  check.request.method: GET
+  check.response.status: 200
+- type: http
+  schedule: '@every 15s'
+  urls: ["http://www.amazon.com:80"]
+  check.request.method: GET
+  check.response.status: 200
+- type: http
+  schedule: '@every 15s'
+  urls: ["https://www.test.com"]
+  check.request.method: GET
+  check.response.status: 200

@@ -1,0 +1,142 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Deploy a service into an ECS cluster behind a public load balancer.
+Parameters:
+  StackName:
+    Type: String
+    Default: sp-insights-cluster
+    Description: The name of the parent cluster stack that you created. Necessary
+                 to locate and reference resources created by that stack.
+
+Resources:
+
+  # The task definition. This is a simple metadata description of what
+  # container to run, and what resource requirements it has.
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: sp-insights-service
+      NetworkMode: bridge
+      Volumes:
+        - Name: sp-logs-vol
+          Host:
+            SourcePath: /opt/sp-insights/sp-logs
+      ContainerDefinitions:
+        - Name: elasticsearch
+          Hostname: elasticsearch
+          Cpu: 2048
+          Memory: 4096
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: sp-insights-logs
+              awslogs-region: eu-west-1
+              awslogs-stream-prefix: elasticsearch
+          Image: damianmcdonald/elasticsearch-cloud:1.0.0
+          PortMappings:
+            - ContainerPort: 9200
+        - Name: kibana
+          Hostname: kibana
+          Cpu: 2048
+          Memory: 4096
+          Links:
+            - elasticsearch
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: sp-insights-logs
+              awslogs-region: eu-west-1
+              awslogs-stream-prefix: kibana
+          Image: damianmcdonald/kibana-cloud:1.0.0
+          PortMappings:
+            - ContainerPort: 5601
+        - Name: metricbeat
+          Hostname: metricbeat
+          Cpu: 1024
+          Memory: 2048
+          Links: [elasticsearch,kibana]
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: sp-insights-logs
+              awslogs-region: eu-west-1
+              awslogs-stream-prefix: metricbeat
+          Image: damianmcdonald/metricbeat-cloud:1.1.0
+        - Name: logstash
+          Hostname: logstash
+          Cpu: 2048
+          Memory: 4096
+          Links:
+            - elasticsearch
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: sp-insights-logs
+              awslogs-region: eu-west-1
+              awslogs-stream-prefix: logstash
+          Image: damianmcdonald/logstash-cloud:1.0.0
+          PortMappings:
+            - ContainerPort: 5044
+        - Name: elastalert
+          Hostname: elastalert
+          Cpu: 1024
+          Memory: 2048
+          Links:
+            - elasticsearch
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: sp-insights-logs
+              awslogs-region: eu-west-1
+              awslogs-stream-prefix: elastalert
+          Image: damianmcdonald/elastalert-cloud:1.0.0
+        - Name: servicemock
+          Hostname: servicemock
+          Cpu: 1024
+          Memory: 2048
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: sp-insights-logs
+              awslogs-region: eu-west-1
+              awslogs-stream-prefix: servicemock
+          Image: damianmcdonald/servicemock-cloud:1.0.0
+          MountPoints:
+            - ContainerPath: /var/log/softwarepackage
+              ReadOnly: false
+              SourceVolume: sp-logs-vol
+        - Name: filebeat
+          Hostname: filebeat
+          Cpu: 1024
+          Memory: 2048
+          Links:
+            - logstash
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: sp-insights-logs
+              awslogs-region: eu-west-1
+              awslogs-stream-prefix: filebeat
+          Image: damianmcdonald/filebeat-cloud:1.1.0
+          MountPoints:
+            - ContainerPath: /var/log/softwarepackage
+              ReadOnly: false
+              SourceVolume: sp-logs-vol
+
+  # The service. The service is a resource which allows you to run multiple
+  # copies of a type of task, and gather up their logs and metrics, as well
+  # as monitor the number of running tasks and replace any that have crashed
+  Service:
+    Type: AWS::ECS::Service
+    Properties:
+      ServiceName: sp-inisghts-service
+      Cluster:
+        Fn::ImportValue:
+          !Join [':', [!Ref 'StackName', 'ClusterName']]
+      DesiredCount: 1
+      TaskDefinition: !Ref 'TaskDefinition'
+      LoadBalancers:
+        - ContainerName: kibana
+          ContainerPort: 5601
+          TargetGroupArn:
+            Fn::ImportValue:
+              !Join [':', [!Ref 'StackName', 'KibanaTargetGroup']]
