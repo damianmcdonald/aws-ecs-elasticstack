@@ -102,6 +102,19 @@ aws-undeploy.sh | Script that can be used to destroy and clean-up all of the res
 
 Once the [aws-deploy.sh](aws-deploy.sh) script has successfully completed, the script will output various commands that must be executed in order to create the beat dashboards ([Metricbeat](https://www.elastic.co/products/beats/metricbeat), [Filebeat](https://www.elastic.co/products/beats/filebeat) and [Heartbeat](https://www.elastic.co/products/beats/heartbeat)) in [Kibana](https://www.elastic.co/products/kibana).
 
+The commands need to be executed from within an EC2 instance of the AWS ECS cluster.
+
+The [aws-deploy.sh](aws-deploy.sh) script will output an `EXTERNAL_IP` variables which is the `public IP Address of the the EC2 instance.
+
+You can connect to this instance using the following commands.
+
+```bash
+sudo chmod 400 $KEY_PAIR_NAME.pem
+ssh -i $KEY_PAIR_NAME.pem ec2-user@$EXTERNAL_IP
+```
+  
+Once you have successfully established a connection to the EC2 instance, you can issue the commands to create the beat dashboards in Kibana.
+
 ```bash
 *********** METRICBEAT ***********
 
